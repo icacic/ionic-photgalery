@@ -18,17 +18,15 @@ import { HttpClient } from '@angular/common/http';
   providedIn: 'root',
 })
 export class PhotoService {
-
   public photos: UserPhoto[] = [];
   private PHOTO_STORAGE = 'photos';
   private platform: Platform;
 
-  constructor(platform: Platform,private http: HttpClient) {
+  constructor(platform: Platform, private http: HttpClient) {
     this.platform = platform;
   }
 
   public async addNewToGallery() {
-
     //Otvaranje kamere
     const capturedPhoto = await Camera.getPhoto({
       resultType: CameraResultType.Uri,
@@ -44,7 +42,7 @@ export class PhotoService {
       key: this.PHOTO_STORAGE,
       value: JSON.stringify(this.photos),
     });
-
+    //Ucitavanje svih slika u listi u base64 formatu
     this.loadSaved();
   }
 
@@ -54,9 +52,11 @@ export class PhotoService {
   }
 
   public async loadSaved() {
+    //Dohvat liste slika iz photo-storage sa uređaja
     const photoList = await Storage.get({ key: this.PHOTO_STORAGE });
     this.photos = JSON.parse(photoList.value) || [];
 
+    //Provjera jesmo li na mobilnom uređaju ili na računalu ovisno o tome na taj način prikazujemo podatke
     if (!this.platform.is('hybrid')) {
       for (let photo of this.photos) {
         const readFile = await Filesystem.readFile({
@@ -69,13 +69,18 @@ export class PhotoService {
     }
   }
 
-  public sendToBackend(data: string){
+  public sendToBackend(data: string) {
     console.log(data);
-    let image = this.dataURLtoFile(data,'test');
+    //iz base64 url pretvorit u File
+    let image = this.dataURLtoFile(data, 'test');
     const formData = new FormData();
-    formData.append('file',image);
+    formData.append('file', image);
     this.http
-      .post('http://ip172-18-0-76-c9uetq09jotg00fqsaj0-8080.direct.labs.play-with-docker.com/api/image', formData, {responseType:'blob'})
+      .post(
+        'http://ip172-18-0-76-c9uetq09jotg00fqsaj0-8080.direct.labs.play-with-docker.com/api/image',
+        formData,
+        { responseType: 'blob' }
+      )
       .subscribe({
         next: (response) => {
           this.saveBlobPictureToList(response);
@@ -99,6 +104,7 @@ export class PhotoService {
   }
 
   private async savePicture(photo: Photo) {
+    //pročitamo sliku kao base64
     const base64Data = await this.readAsBase64(photo);
 
     const fileName = new Date().getTime() + '.jpeg';
@@ -121,7 +127,7 @@ export class PhotoService {
     }
   }
 
-  private async saveBase64Photo(base64Data: string){
+  private async saveBase64Photo(base64Data: string) {
     const fileName = new Date().getTime() + '.jpeg';
     const savedFile = await Filesystem.writeFile({
       path: fileName,
@@ -137,13 +143,15 @@ export class PhotoService {
     } else {
       return {
         filepath: fileName,
-        webviewPath: base64Data
+        webviewPath: base64Data,
       };
     }
   }
 
-  private async saveBlobPictureToList(blob: Blob){
-    let data = await this.convertBlobToBase64(blob) as string;
+  private async saveBlobPictureToList(blob: Blob) {
+    //dobiveni blob konvertiramo base64 string
+    let data = (await this.convertBlobToBase64(blob)) as string;
+    //konvertiramo taj string u UserPhoro interface da ga možemo spremit u listu
     let savedImageFIle = await this.saveBase64Photo(data);
     this.photos.unshift(savedImageFIle);
 
